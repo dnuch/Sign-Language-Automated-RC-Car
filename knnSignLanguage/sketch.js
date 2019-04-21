@@ -12,20 +12,16 @@ const TOPK = 10;
 // Create a KNN classifier
 const knnClassifier = ml5.KNNClassifier();
 let featureExtractor;
-let training = false;
 
 function setup() {
   // Create a featureExtractor that can extract the already learned features from MobileNet
   featureExtractor = ml5.featureExtractor('MobileNet', modelReady);
   noCanvas();
-  // Create a video element
-  video = createCapture(VIDEO);
-  // Append it to the videoContainer DOM element
-  video.parent('videoContainer');
 }
 
 function modelReady(){
   select('#status').html('FeatureExtractor(mobileNet model) Loaded');
+  setupVideo();
   // Create the UI buttons
   createButtons();
 }
@@ -65,6 +61,19 @@ function classify() {
   // Remember to add `async` before `function predictClass()`
   // const res = await knnClassifier.classify(features);
   // gotResults(null, res);
+}
+
+function setupVideo() {
+    // Create a video element
+    video = document.getElementById('video');
+    video.src = 'http://10.252.120.235:8080/stream?topic=/cv_camera/image_raw';
+    // video.src = 'http://10.252.120.235:8080/snapshot?topic=/cv_camera/image_raw';
+
+    // Append it to the videoContainer DOM element
+    // video.parent('video');
+    video.onload = function() {
+        console.log('video rdy')
+    };
 }
 
 // A util function to create UI buttons
