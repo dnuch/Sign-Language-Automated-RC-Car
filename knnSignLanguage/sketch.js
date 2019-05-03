@@ -20,8 +20,10 @@ function setup() {
 }
 
 function modelReady(){
+  const left = document.querySelector(".left"); 
   select('#status').html('FeatureExtractor(mobileNet model) Loaded');
-  setupVideo();
+
+  setupVideo(); 
   // Create the UI buttons
   createButtons();
 }
@@ -81,6 +83,7 @@ function createButtons() {
   let div = document.createElement('div');
   document.body.appendChild(div);
   div.style.marginBottom = '5px';
+
   // Predict button
   const buttonPredict = document.createElement('button');
   buttonPredict.innerText = 'Start Predicting';
