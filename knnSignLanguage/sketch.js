@@ -7,13 +7,14 @@ let video;
 let infoTexts = new Map();
 
 // experiment with changing k
-const TOPK = 10;
+const TOPK = 15;
 
 // Create a KNN classifier
 const knnClassifier = ml5.KNNClassifier();
 let featureExtractor;
 
 function setup() {
+  console.log(`k = ${TOPK}`);
   // Create a featureExtractor that can extract the already learned features from MobileNet
   featureExtractor = ml5.featureExtractor('MobileNet', modelReady);
   noCanvas();

@@ -3,7 +3,7 @@
 
 let img;
 // Create a KNN classifier
-const TOPK = 3;
+const TOPK = 7;
 // map of sign language name to number of examples
 // and percentage classification info text elements
 // infotexts = {'signLanguageName', [ '# Examples', '% classification' ]}
@@ -11,9 +11,11 @@ let infoTexts = new Map();
 const knnClassifier = ml5.KNNClassifier();
 let poseNet;
 let poses = [];
+var runClassifier = false;
 
 function setup() {
     setupROS();
+    console.log(`k = ${TOPK}`);
     createCanvas(640, 480);
 
     // create an image using the p5 dom library
@@ -26,29 +28,40 @@ function setup() {
     frameRate(60); // set the frameRate to 1 since we don't need it to be running quickly in this case
 }
 
+function processPoseNet(results) {
+    poses = results;
+    console.log(poses[0].poseWithParts.score);
+    // keep drawing on multiple images
+    if (poses[0].poseWithParts.score > 0.30) {
+        runClassifier = true;
+    } else {
+        runClassifier = false;
+    }
+    poseNet.singlePose(img);
+}
+
 // when the image is ready, then load up poseNet
 function imageReady() {
     createButtons();
 
     const options = {
-        // imageScaleFactor: 0.3,
-        // outputStride: 16,
-        // flipHorizontal: false,
+        imageScaleFactor: 0.3,
+        outputStride: 16,
+        flipHorizontal: false,
         minConfidence: 0.9,
         maxPoseDetections: 1,
-        // scoreThreshold: 0.5,
-        // nmsRadius: 20,
+        scoreThreshold: 0.9,
+        nmsRadius: 20,
         detectionType: 'single',
-        // multiplier: 0.75,
+        // detectionType: 'multiple',
+        multiplier: 0.75
     };
 
     // assign poseNet
     poseNet = ml5.poseNet(modelReady, options);
     // This sets up an event that listens to 'pose' events
     poseNet.on('pose', function (results) {
-        poses = results;
-        // keep drawing on multiple images
-        poseNet.singlePose(img);
+        processPoseNet(results);
     });
 }
 
@@ -74,18 +87,28 @@ function modelReady() {
 
 // Predict the current frame.
 function classify() {
-    // Get the total number of labels from knnClassifier
-    const numLabels = knnClassifier.getNumLabels();
-    if (numLabels <= 0) {
-        console.error('There is no examples in any label');
-        return;
-    }
-    // Convert poses results to a 2d array [[score0, x0, y0],...,[score16, x16, y16]]
-    const poseArray = poses[0].poseWithParts.keypoints.map(p => [p.score, p.position.x, p.position.y]);
+    if (runClassifier) {
+        // Get the total number of labels from knnClassifier
+        console.log('classifier run');
+        const numLabels = knnClassifier.getNumLabels();
+        if (numLabels <= 0) {
+            console.error('There is no examples in any label');
+            return;
+        }
+        // Convert poses results to a 2d array [[score0, x0, y0],...,[score16, x16, y16]]
+        const poseArray = poses[0].poseWithParts.keypoints.map(p => [p.score, p.position.x, p.position.y]);
 
-    // Use knnClassifier to classify which label do these features belong to
-    // You can pass in a callback function `gotResults` to knnClassifier.classify function
-    knnClassifier.classify(poseArray, TOPK, gotResults);
+        // Use knnClassifier to classify which label do these features belong to
+        // You can pass in a callback function `gotResults` to knnClassifier.classify function
+        knnClassifier.classify(poseArray, TOPK, gotResults);
+    } else {
+        setTimeout(() => {
+            classify();
+            sendTwist();
+            isReversing = false;
+        }, 100);
+
+    }
 }
 
 // A util function to create UI buttons
@@ -174,32 +197,13 @@ function gotResults(err, result) {
         if (result.label) {
             select('#result').html(result.label);
             select('#confidence').html(`${confidences[result.label] * 100} %`);
+
+            sendTwistOnConfidence(confidences);
         }
 
         for (let pose of _poses) {
             infoTexts.get(pose)[1].innerText = `${confidences[pose] ? confidences[pose] * 100 : 0} %`;
         }
-
-        if (confidences['idle'] > 0.9) {
-            sendTwist();
-        }
-
-        if (confidences['up'] > 0.9) {
-            sendTwist(FORWARD);
-        }
-
-        if (confidences['down'] > 0.9) {
-            sendBackwardTwist()
-        }
-
-        if (confidences['left'] > 0.9) {
-            sendTwist(0.0, LEFT);
-        }
-
-        if (confidences['right'] > 0.9) {
-            sendTwist(0.0, RIGHT);
-        }
-
     }
 
     classify();
@@ -285,10 +289,18 @@ function drawSkeleton() {
 let ros;
 let cmdVel;
 // -1.0 to 1.0 values
-const FORWARD = 0.55;
-const BACKWARD = -0.6;
+// const FORWARD = 0.55;
+// const BACKWARD = -0.6;
+const FORWARD = 0.46;
+const MAX_FORWARD = FORWARD + 0.05;
+const BACKWARD = -0.50;
+const MAX_BACKWARD = BACKWARD - 0.05;
 const LEFT = 1.0;
+const MIDLEFT = LEFT - 0.3;
+
 const RIGHT = -1.0;
+
+const MIDRIGHT = RIGHT + 0.3;
 
 function setupROS() {
     ros = new ROSLIB.Ros({
@@ -338,10 +350,17 @@ function sendTwist(linearX = 0.0, angularZ = 0.0) {
 
 // to reverse the RC car, the signals must be
 // sent in following order: backward -> idle -> backward
-function sendBackwardTwist(timeoutOffset = 0.0) {
-    setTimeout(() => sendTwist(BACKWARD), 100 + timeoutOffset);
-    setTimeout(() => sendTwist(), 200 + timeoutOffset);
-    setTimeout(() => sendTwist(BACKWARD), 300 + timeoutOffset);
+function sendBackwardTwist(linearX = BACKWARD, angularZ = 0.0) {
+    sendTwist(linearX, angularZ);
+    sendTwist();
+    sendTwist(linearX, angularZ);
+
+    sendTwist(linearX, angularZ);
+    sendTwist();
+    sendTwist(linearX, angularZ);
+    // setTimeout(() => sendTwist(BACKWARD, angularZ), 100 + timeoutOffset);
+    // setTimeout(() => sendTwist(), 200 + timeoutOffset);
+    // setTimeout(() => sendTwist(BACKWARD), 300 + timeoutOffset);
 }
 
 function init() {
@@ -351,7 +370,8 @@ function init() {
 
     setTimeout(() => sendTwist(), 900);
 
-    sendBackwardTwist(1100);
+    // sendBackwardTwist(1100);
+    sendBackwardTwist();
     setTimeout(() => sendTwist(), 2000);
 
     setTimeout(() => sendTwist(0.0, RIGHT), 3000);
@@ -359,10 +379,137 @@ function init() {
     setTimeout(() => sendTwist(), 5000);
 }
 
+let isReversing = false;
+function sendTwistOnConfidence(confidences) {
+    /*************Moving positions****************/
+
+
+    if (confidences['idle_B3C3'] > 0.9 || confidences['noPose'] > 0.9) {
+        sendTwist();
+        isReversing = false;
+    }
+
+    if (confidences['idleLeft_A3B3'] > 0.9) {
+        sendTwist();
+        isReversing = false;
+    }
+
+    if (confidences['idleRight_C3D3'] > 0.9) {
+        sendTwist();
+        isReversing = false;
+    }
+
+    if (confidences['forwardMiddleUp_B4C4'] > 0.9) {
+        sendTwist(FORWARD);
+        isReversing = false;
+    }
+
+    if (confidences['forwardMiddleUpLeft_A4B4'] > 0.9) {
+        sendTwist(FORWARD, MIDLEFT);
+        isReversing = false;
+    }
+
+    if (confidences['forwardMiddleUpRight_C4D4'] > 0.9) {
+        sendTwist(FORWARD, MIDRIGHT);
+        isReversing = false;
+    }
+
+    if (confidences['forwardUp_B5C5'] > 0.9) {
+        sendTwist(MAX_FORWARD);
+        isReversing = false;
+    }
+
+    if (confidences['forwardUpLeft_A5B5'] > 0.9) {
+        sendTwist(MAX_FORWARD, LEFT);
+        isReversing = false;
+    }
+
+    if (confidences['forwardUpRight_C5D5'] > 0.9) {
+        sendTwist(MAX_FORWARD, RIGHT);
+        isReversing = false;
+    }
+
+    if (confidences['backwardMiddleDown_B2C2'] > 0.9) {
+        if (isReversing) sendTwist(BACKWARD);
+        else {
+            isReversing = true;
+            sendBackwardTwist();
+        }
+    }
+
+    if (confidences['backwardMiddleDownLeft_A2B2'] > 0.9) {
+        if (isReversing) sendTwist(BACKWARD, MIDRIGHT);
+        else {
+            isReversing = true;
+            sendBackwardTwist(BACKWARD, MIDRIGHT);
+        }
+    }
+
+    if (confidences['backwardMiddleDownRight_C2D2'] > 0.9) {
+        if (isReversing) sendTwist(BACKWARD, MIDLEFT);
+        else {
+            isReversing = true;
+            sendBackwardTwist(BACKWARD, MIDLEFT);
+        }
+    }
+
+    if (confidences['backwardDown_B1C1'] > 0.9) {
+        if (isReversing) sendTwist(MAX_BACKWARD);
+        else {
+            isReversing = true;
+            sendBackwardTwist(MAX_BACKWARD);
+        }
+    }
+
+    if (confidences['backwardDownLeft_A1B1'] > 0.9) {
+        if (isReversing) sendTwist(MAX_BACKWARD, RIGHT);
+        else {
+            isReversing = true;
+            sendBackwardTwist(MAX_BACKWARD, RIGHT);
+        }
+    }
+
+    if (confidences['backwardDownRight_C1D1'] > 0.9) {
+        if (isReversing) sendTwist(MAX_BACKWARD, LEFT);
+        else {
+            isReversing = true;
+            sendBackwardTwist(MAX_BACKWARD, LEFT);
+        }
+    }
+}
+
 const _poses = [
-    'idle',
-    'left',
-    'right',
-    'up',
-    'down'
+    // stationary poses control robot
+    'noPose',
+
+    /*
+      A5| backward_L_Up  | backward_Up   | backward_L_Up  |D5
+        | backward_MR_Up | backward_M_Up | backward_ML_Up |
+        | idle_right     | idle          | idle_left      |
+        | forward_MR_Up  | forward_M_Up  | forward_ML_Up  |
+      A1| forward_R_Up   | forward_Up    | forward_L_Up   |D1
+
+                                car
+     */
+
+    // position on camera control robot
+    'idle_B3C3',
+    'idleLeft_A3B3',
+    'idleRight_C3D3',
+
+    'forwardMiddleUp_B4C4',
+    'forwardMiddleUpLeft_A4B4',
+    'forwardMiddleUpRight_C4D4',
+
+    'forwardUp_B5C5',
+    'forwardUpLeft_A5B5',
+    'forwardUpRight_C5D5',
+
+    'backwardMiddleDown_B2C2',
+    'backwardMiddleDownLeft_A2B2',
+    'backwardMiddleDownRight_C2D2',
+
+    'backwardDown_B1C1',
+    'backwardDownLeft_A1B1',
+    'backwardDownRight_C1D1'
 ];
