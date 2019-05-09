@@ -5,6 +5,9 @@
   - **ros-i2cpwmboard** -  The project where the i2cpwm_board controller node is located.  This node interfaces with the [PCA9685 I2C 16-Channel 12-bit PWM/Servo Driver](https://www.amazon.com/gp/product/B01G61MZF4/ref=as_li_qf_asin_il_tl?ie=UTF8&tag=tizianoslab-20&creative=9325&linkCode=as2&creativeASIN=B01G61MZF4&linkId=1179856ce06b25cbf85ad9aaeae25201).  Visit http://bradanlane.gitlab.io/ros-i2cpwmboard/ for more information regarding this node.
 - **images** - contains an image of how the ROS nodes look like
 - **knnSignLanguage** - Sign Language Detection Website running MobileNet CNN and KNN classification.  The images are retrieved from a website locally hosted by the Raspberry Pi on the same network as the Laptop retrieving it.  The dataset we manually trained is `sign_knn_dataset.json`.  `sketch.js` file contains the source of the code (change variable `piAddress` to the correct Raspberry Pi's local network address).
+
+Demo Video: https://youtu.be/iocofPDwVtI
+
 - **posenetBodyTracking** - Body Tracking Website running PoseNet CNN and KNN classification.  The images are retrieved from a website locally hosted by the Raspberry Pi on the same network as the Laptop retrieving it.   The dataset we manually trained is `pose_knn_dataset.json`.  `sketch.js` file contains the source of the code (change variable `piAddress` to the correct Raspberry Pi's local network address).
 - **scripts**
   - `chrome_security.bat` is a Windows script that runs chrome in developer mode with web security (CORS) disabled which is required to retrieve images externally from Chrome (in our case, the retrieval of images from the Pi).  
