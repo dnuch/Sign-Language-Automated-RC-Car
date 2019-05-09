@@ -13,6 +13,9 @@ let poseNet;
 let poses = [];
 var runClassifier = false;
 
+// Pi's network address
+let piAddress = '10.252.120.235';
+
 function setup() {
     setupROS();
     console.log(`k = ${TOPK}`);
@@ -20,7 +23,7 @@ function setup() {
 
     // create an image using the p5 dom library
     // call modelReady() when it is loaded
-    img = createImg('http://10.252.120.235:8080/stream?topic=/cv_camera/image_raw', imageReady);
+    img = createImg('http://' + piAddress + ':8080/stream?topic=/cv_camera/image_raw', imageReady);
     // set the image size to the size of the canvas
     img.size(width, height);
 

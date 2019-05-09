@@ -13,6 +13,9 @@ const TOPK = 15;
 const knnClassifier = ml5.KNNClassifier();
 let featureExtractor;
 
+// Pi's local network address
+let piAddress = '10.252.120.235';
+
 function setup() {
   console.log(`k = ${TOPK}`);
   // Create a featureExtractor that can extract the already learned features from MobileNet
@@ -67,8 +70,7 @@ function classify() {
 function setupVideo() {
     // Create a video element
     video = document.getElementById('video');
-    video.src = 'http://10.252.120.235:8080/stream?topic=/cv_camera/image_raw';
-    // video.src = 'http://10.252.120.235:8080/snapshot?topic=/cv_camera/image_raw';
+    video.src = 'http://' + piAddress + ':8080/stream?topic=/cv_camera/image_raw';
 
     // Append it to the videoContainer DOM element
     // video.parent('video');
