@@ -45,7 +45,7 @@ function addExample(label) {
 
   // Add an example with a label to the classifier
   knnClassifier.addExample(features, label);
-  console.log("added an example for " + label)
+  console.log("added an example for " + label);
   updateCounts(label);
 }
 

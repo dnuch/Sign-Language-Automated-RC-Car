@@ -12,128 +12,127 @@ const TOPK = 15;
 // Create a KNN classifier
 const knnClassifier = ml5.KNNClassifier();
 let featureExtractor;
+let training = false;
+
+var letter_word = null;
 
 // Pi's local network address
 let piAddress = '10.252.120.235';
 
 function setup() {
-  console.log(`k = ${TOPK}`);
-  // Create a featureExtractor that can extract the already learned features from MobileNet
-  featureExtractor = ml5.featureExtractor('MobileNet', modelReady);
-  noCanvas();
+    console.log(`k = ${TOPK}`);
+    // Create a featureExtractor that can extract the already learned features from MobileNet
+    featureExtractor = ml5.featureExtractor('MobileNet', modelReady);
+    noCanvas();
 }
 
 function modelReady(){
-  const left = document.querySelector(".left"); 
-  select('#status').html('FeatureExtractor(mobileNet model) Loaded');
-
-  setupVideo(); 
-  // Create the UI buttons
-  createButtons();
+    setupVideo();
+    console.log('FeatureExtractor(mobileNet model) Loaded');
+    // Create the UI buttons
+    createButtons();
 }
 
 // Add the current frame from the video to the classifier
 function addExample(label) {
-  // Get the features of the input video
-  const features = featureExtractor.infer(video);
-  // You can also pass in an optional endpoint, defaut to 'conv_preds'
-  // const features = featureExtractor.infer(video, 'conv_preds');
-  // You can list all the endpoints by calling the following function
-  // console.log('All endpoints: ', featureExtractor.mobilenet.endpoints)
+    // Get the features of the input video
+    const features = featureExtractor.infer(video);
 
-  // Add an example with a label to the classifier
-  knnClassifier.addExample(features, label);
-  updateCounts();
+    // You can also pass in an optional endpoint, defaut to 'conv_preds'
+    // const features = featureExtractor.infer(video, 'conv_preds');
+    // You can list all the endpoints by calling the following function
+    // console.log('All endpoints: ', featureExtractor.mobilenet.endpoints)
+
+    // Add an example with a label to the classifier
+    knnClassifier.addExample(features, label);
+    console.log("added an example for " + label);
+    updateCounts(label);
 }
 
 // Predict the current frame.
 function classify() {
-  // Get the total number of labels from knnClassifier
-  const numLabels = knnClassifier.getNumLabels();
-  if (numLabels <= 0) {
-    console.error('There is no examples in any label');
-    return;
-  }
-  // Get the features of the input video
-  const features = featureExtractor.infer(video);
+    // Get the total number of labels from knnClassifier
+    const numLabels = knnClassifier.getNumLabels();
 
-  // Use knnClassifier to classify which label do these features belong to
-  // You can pass in a callback function `gotResults` to knnClassifier.classify function
-  knnClassifier.classify(features, TOPK, gotResults);
-  // You can also pass in an optional K value, K default to 3
-  // knnClassifier.classify(features, 3, gotResults);
+    if (numLabels <= 0) {
+        console.error('There are no examples in any label');
+        return;
+    }
+    // Get the features of the input video
+    const features = featureExtractor.infer(video);
 
-  // You can also use the following async/await function to call knnClassifier.classify
-  // Remember to add `async` before `function predictClass()`
-  // const res = await knnClassifier.classify(features);
-  // gotResults(null, res);
+    // Use knnClassifier to classify which label do these features belong to
+    // You can pass in a callback function `gotResults` to knnClassifier.classify function
+    knnClassifier.classify(features, TOPK, gotResults);
+    // You can also pass in an optional K value, K default to 3
+    // knnClassifier.classify(features, 3, gotResults);
+
+    // You can also use the following async/await function to call knnClassifier.classify
+    // Remember to add `async` before `function predictClass()`
+    // const res = await knnClassifier.classify(features);
+    // gotResults(null, res);
 }
 
-function setupVideo() {
-    // Create a video element
-    video = document.getElementById('video');
-    video.src = 'http://' + piAddress + ':8080/stream?topic=/cv_camera/image_raw';
-
-    // Append it to the videoContainer DOM element
-    // video.parent('video');
-    video.onload = function() {
-        console.log('video rdy')
-    };
+// Update the example count for each label
+function updateCounts(label) {
+    const counts = knnClassifier.getCountByLabel();
+    if(label != null) {
+        infoTexts.get(label)[0].innerText = `${(counts[label] || 0)} examples`;
+    }
+    else
+        console.log("Letter or word not selected");
 }
 
+function selectMenu(sign) {
+    letter_word = sign;
+    updateCounts(letter_word);
+}
 // A util function to create UI buttons
 function createButtons() {
-  let div = document.createElement('div');
-  document.body.appendChild(div);
-  div.style.marginBottom = '5px';
-
-  // Predict button
-  const buttonPredict = document.createElement('button');
-  buttonPredict.innerText = 'Start Predicting';
-  div.appendChild(buttonPredict);
-  buttonPredict.addEventListener('click', () => classify());
-
-  // Clear all classes button
-  const buttonClearAll = document.createElement('button');
-  buttonClearAll.innerText = 'Clear All Classifiers';
-  div.appendChild(buttonClearAll);
-  buttonClearAll.addEventListener('click', () => clearAllLabels());
-
-  // Load saved classifier dataset
-  const buttonSetData = document.createElement('button');
-  buttonSetData.innerText = 'Load Classifier File';
-  div.appendChild(buttonSetData);
-  buttonSetData.addEventListener('click', () => loadMyKNN());
-
-  // Get classifier dataset
-  const buttonGetData = document.createElement('button');
-  buttonGetData.innerText = 'Save Classifier File';
-  div.appendChild(buttonGetData);
-  buttonGetData.addEventListener('click', () => saveMyKNN());
-
-  // When a training button is pressed, add the current frame
-  // from the video with a label of `sign` to the classifier
-  // Reset buttons implemented
-  for (let sign of signs) {
-    div = document.createElement('div');
-    document.body.appendChild(div);
+    var div = document.getElementById("left");
     div.style.marginBottom = '5px';
+
+    // Predict button
+    const buttonPredict = document.createElement('button');
+    buttonPredict.innerText = 'Start Predicting';
+    div.appendChild(buttonPredict);
+    buttonPredict.addEventListener('click', () => classify());
+
+    // Clear all classes button
+    const buttonClearAll = document.createElement('button');
+    buttonClearAll.innerText = 'Clear All Classifiers';
+    div.appendChild(buttonClearAll);
+    buttonClearAll.addEventListener('click', () => clearAllLabels());
+
+    // Load saved classifier dataset
+    const buttonSetData = document.createElement('button');
+    buttonSetData.innerText = 'Load Classifier File';
+    div.appendChild(buttonSetData);
+    buttonSetData.addEventListener('click', () => loadMyKNN());
+
+    // Get classifier dataset
+    const buttonGetData = document.createElement('button');
+    buttonGetData.innerText = 'Save Classifier File';
+    div.appendChild(buttonGetData);
+    buttonGetData.addEventListener('click', () => saveMyKNN());
+
+
+    const breakText = document.createElement('br');
+    div.appendChild(breakText);
 
     // Create training button
     const buttonTrain = document.createElement('button');
-    buttonTrain.innerText =`Train ${sign}`;
+    buttonTrain.innerText =`Train`;
     div.appendChild(buttonTrain);
-
-    // Listen for mouse events when clicking the button
-    buttonTrain.addEventListener('click', () => addExample(sign));
 
     // Create training button
     const buttonReset = document.createElement('button');
-    buttonReset.innerText =`Reset ${sign}`;
+    buttonReset.innerText =`Reset`;
     div.appendChild(buttonReset);
 
-    // Listen for mouse events when clicking the button
-    buttonReset.addEventListener('click', () => clearLabel(sign));
+    // Train and Reset Listeners
+    buttonTrain.addEventListener('click', () => addExample(letter_word));
+    buttonReset.addEventListener('click', () => clearLabel(letter_word));
 
     // Create example info text
     const infoExampleText = document.createElement('span');
@@ -150,65 +149,84 @@ function createButtons() {
     infoClassificationText.innerText = '0% Classification';
     div.appendChild(infoClassificationText);
 
-    // append to map
-    infoTexts.set(sign, [
-      infoExampleText,
-      infoClassificationText
-    ]);
-  }
+    console.log("Buttons created")
+    for (let sign of signs) {
+        document.body.appendChild(div);
+        div.style.marginBottom = '5px';
+
+        //  Select Menu
+        var letterMenu = document.getElementById('LetterList');
+        const opt = document.createElement('option');
+        // opt.innerText =`Train ${sign}`;
+        opt.innerText = sign;
+        console.log(opt)
+        letterMenu.appendChild(opt);
+
+        // Listener for each option
+        opt.addEventListener('click', () => selectMenu(sign));
+
+        // Append to map
+        infoTexts.set(sign, [
+            infoExampleText,
+            infoClassificationText
+        ]);
+    }
+
 }
 
 // Show the results
 function gotResults(err, result) {
-  // Display any error
-  if (err) {
-    console.error(err);
-  }
-
-  if (result.confidencesByLabel) {
-    const confidences = result.confidencesByLabel;
-    // result.label is the label that has the highest confidence
-    if (result.label) {
-      select('#result').html(result.label);
-      select('#confidence').html(`${confidences[result.label] * 100} %`);
+    // Display any error
+    if (err) {
+        console.error(err);
     }
 
-    for (let sign of signs) {
-      infoTexts.get(sign)[1].innerText = `${confidences[sign] ? confidences[sign] * 100 : 0} %`;
-    }
-  }
+    if (result.confidencesByLabel) {
+        const confidences = result.confidencesByLabel;
+        // result.label is the label that has the highest confidence
+        if (result.label) {
+            select('#result').html(result.label);
+            select('#confidence').html(`${confidences[result.label] * 100} %`);
+        }
 
-  classify();
+        for (let sign of signs) {
+            infoTexts.get(sign)[1].innerText = `${confidences[sign] ? confidences[sign] * 100 : 0} %`;
+        }
+    }
+
+    classify();
 }
 
-// Update the example count for each label	
-function updateCounts() {
-  const counts = knnClassifier.getCountByLabel();
-  for (let sign of signs) {
-    infoTexts.get(sign)[0].innerText = `${(counts[sign] || 0)} examples`;
-  }
+function setupVideo() {
+    // Create a video element
+    video = document.getElementById('video');
+    video.src = 'http://' + piAddress + ':8080/stream?topic=/cv_camera/image_raw';
+
+    video.onload = function() {
+        console.log('video rdy')
+    };
 }
 
 // Clear the examples in one label
 function clearLabel(label) {
-  knnClassifier.clearLabel(label);
-  updateCounts();
+    knnClassifier.clearLabel(label);
+    updateCounts(label);
 }
 
 // Clear all the examples in all labels
 function clearAllLabels() {
-  knnClassifier.clearAllLabels();
-  updateCounts();
+    knnClassifier.clearAllLabels();
+    updateCounts(letter_word);
 }
 
 // Save dataset locally
 function saveMyKNN() {
-  knnClassifier.save('sign_knn_dataset.json');
+    knnClassifier.save('sign_knn_dataset.json');
 }
 
 // Load dataset to the classifier
 function loadMyKNN() {
-  knnClassifier.load('./sign_knn_dataset.json', updateCounts);
+    knnClassifier.load('../../sign_knn_dataset2.json', updateCounts(letter_word));
 }
 
 const signs = [

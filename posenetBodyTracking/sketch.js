@@ -21,12 +21,17 @@ function setup() {
     console.log(`k = ${TOPK}`);
     createCanvas(640, 480);
 
+	//const videoContainer = document.getElementById('videoContainer');
     // create an image using the p5 dom library
     // call modelReady() when it is loaded
     img = createImg('http://' + piAddress + ':8080/stream?topic=/cv_camera/image_raw', imageReady);
     // set the image size to the size of the canvas
     img.size(width, height);
-
+	
+	img.parent('videoContainer');
+	
+	//videoContainer.appendChild(img);
+	
     img.hide(); // hide the image in the browser
     frameRate(60); // set the frameRate to 1 since we don't need it to be running quickly in this case
 }
